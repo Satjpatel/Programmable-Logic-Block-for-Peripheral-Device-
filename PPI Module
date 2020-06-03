@@ -1,0 +1,118 @@
+//Synthesizable Verilog Code for Programmable Logic Block for Peripheral Interface 
+// Abbreviated here as PPI ( Programmable Peripheral Interface) 
+
+//3 Modes 
+//24 I/O Pins 
+//Total 28 Pins 
+
+module ppi ( 
+	input rdb, //Active Low Read Signal 
+	input wrb, //Active Low Write Signal 
+	input [2:0] address, //Address bus for operation 
+	input reset, //Active High signal for clearing the device and initailizing it. 
+	
+	inout [7:0] data, //For reading CWR and STATUS 
+	inout [7:0] PortA, //Data Transfer Bus in All Modes 
+	inout [7:0] PortB, //Data Transfer Bus in All Modes 
+	inout [7:0] PortC //Data Transfer Bus in Mode 0 and Control Bus for other modes  
+	) ; 
+
+//There are 2 internal registers 
+//1. Control Word Register (CWR) 
+	reg [7:0] CWR;  //Determines the functionality and the direction of the ports 
+//2. STATUS Register 
+	reg [7:0] STATUS; //Controls O/p PortC when the PLB s operated in Mode1 and Mode2 
+	
+// Enable signals for Ports (tristate for PortC ) 
+	reg PortAenable, PortBenable ; 
+	reg [7:0] PortCenable; 
+
+//We also need an tristate output bus for data 
+	reg [7:0] out_data ; 
+	
+assign data = out_data ; 
+
+//We also need tristate output buses for all ports 
+	reg [7:0] out_PortA, out_PortB, out_PortC ; 
+	
+assign PortA = out_PortA ; 
+assign PortB = out_PortB ; 
+assign PortC = out_PortC ; 
+
+//For internal latching of data, until the microprocessor needs it, we use 
+reg [7:0] latch_data; 
+
+//For internal reset options - actually a combination of various things 
+	wire int_reset ; 
+	
+assign int_reset =(reset | ( ~CWR[7] ) | (~wrb & ((address == 3'b011) | (address == 3'b111))) ) ; 
+
+//Reset is self-explainatory 
+//CWR[7] is active bit to active the device 
+//011 and 111 correspond to writing data into CWR and STATUS registers, bith which don't require the PPI 
+
+//For internal latching of data until microprocessor is empty 
+
+//Mode 0 
+reg [7:0] latch_portA_mode0 , latch_portB_mode0, latch_portC ; 
+//POrtC works as an input output in Mode 0 only 
+
+//Mode 1 
+reg [7:0] latch_portA_mode1_SI , latch_portB_mode1_SI ; 
+
+//Mode 2 - No requirements 
+
+// Following processes are required 
+
+//1. For writing data into the CWR and STATUS 
+
+	always @(posedge reset or posedge wrb) 
+		begin
+			if(reset)  
+				begin 
+					CWR <= 8'b10011110 ; //Default mode is Mode 0 
+					STATUS <= 00000000 ; 
+				end 
+			else //At rising edge of wrb 
+			begin
+				if(address  == 3'b011 ) //CWR Writing address 
+					begin 
+						//Write value to CWR 
+						CWR <= data ; 
+					end 
+				else if(address == 3'b111) //STATUS Writing address 
+					begin 
+						//Write data into STATUS 
+						STATUS <= data ; 
+					end  //Default case me data latch ho jayega, jus the thing we wanted 
+			end 
+		
+		end 
+	
+//2. For reading the contents of CWR and STATUS 
+/*
+always @( int_reset or posedge rdb ) 
+begin 
+	if(int_reset) 
+		data <= 8'bzzzzzzzz ; 
+	else if(~rdb) 
+		begin 
+			if(address == 3'b011) 
+				data <= CWR ; 
+			else if(address == 3'b111) 
+				data <= STATUS ; 
+		end 
+end 
+*/
+
+//3. Latching data from data bus 
+always @ ( posedge int_reset or negedge wrb ) 
+begin
+	if(int_reset) 
+		latch_data = 8'h00 ; 
+	else  //Falling edge of wrb 
+		latch_data <= data ; 
+end 
+
+
+endmodule
