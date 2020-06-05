@@ -5,14 +5,7 @@
 // Design Name: Programmable Logic Block for Peripheral Interface 
 // Module Name:    ppi 
 // Project Name: Programmable Peripheral Interface 
-// Target Devices: 
-// Tool versions: 
 // Description: A Logic Block to Mimic the functionality of 8255 I/C
-//
-// Dependencies: 
-//
-// Revision: 
-// Revision 0.01 - File Created
 // Additional Comments: 
 //
 //////////////////////////////////////////////////////////////////////////////////
@@ -151,6 +144,11 @@ end
 //4. Latching data from portA, portB, portC 
 //Internal signals 
 wire stbab, stbbb ;  //Loads data into port latch until it is input to the microprocessor 
+//Useful for PortA operation in mode1 (strobed input)  and Mode2  
+assign stbab = (((CWR[6:5] == 2'b01 ) & ~PortAenable) | (CWR[6:5] == 2'b10 ) ) ? PortC[4] : 1'b1 ; 
+//Useful for PortB operation in Mode 1 as strobed input 
+assign stbbb = ((CWR[6:5] == 2'b1 ) & ~PortBenable) ? PortC[2] : 1'b1 ; 
+
 always @ (  posedge int_reset or negedge rdb or negedge stbab or negedge stbbb ) 
 begin
 	if(int_reset) 
@@ -252,14 +250,14 @@ begin
 	begin
 		//PortCupper Output 
 		if(~CWR[4]) 
-			PortCenable[7:4] == 4'hf ; 
+			PortCenable[7:4] = 4'hf ; 
 		else 
-			PortCenable[7:4] == 4'h0 ; 
+			PortCenable[7:4] = 4'h0 ; 
 		//PortClower Output 
 		if(~CWR[3]) 
-			PortCenable[3:0] == 4'hf  ; 
+			PortCenable[3:0] = 4'hf  ; 
 		else 
-			PortCenable[3:0] == 4'h0  ;  
+			PortCenable[3:0] = 4'h0  ;  
 		
 		//PortB Output 
 		if(~CWR[2]) 
@@ -314,6 +312,157 @@ begin
 		PortCenable = 8'b10101000 ; 
 	end 
 end 
+
+
+wire out_obfab, out_obfbb ; 
+wire ackab, ackbb ; 
+
+
+//7. Generating out_obfab, out_obfbb 
+reg set_obfab , set_obfbb ; 
+//Generating set_obfab 
+always @ ( posedge wrb or negedge ackab ) 
+begin 
+	if(~ackab) //Falling edge of ackab 
+		set_obfab <= 0 ; 
+	else if (address == 3'b000 ) 
+		//in posedge of wrb 
+		set_obfab <= 1 ; 
+end 
+
+//Generating set_obfbb
+always @ ( posedge wrb or negedge ackbb ) 
+begin 
+	if(~ackbb) 
+		set_obfbb <= 0 ; 
+	else if (address == 3'b001 ) 
+		set_obfbb <= 1 ; 
+end 
+
+
+assign out_obfab = ~(set_obfab & (((CWR[6:5] == 2'b01 ) & PortAenable) | (CWR[6:5] == 2'b10 )) & (address != 3'b011 ) & (address != 3'b111 )) ; 
+
+assign out_obfbb = ~(set_obfbb & (((CWR[6:5] == 2'b01 ) & PortBenable) | (CWR[6:5] == 2'b10 )) & (address != 3'b011 ) & (address != 3'b111 )) ; 
+
+//Generation of input ackab - needed when Mode 1 and PortA is strobed output or in Mode 2 
+assign ackab = (((CWR[6:5] == 2'b01 ) & PortAenable & PortC[6] ) | (CWR[6:5] == 2'b10 ) & PortC[6] ) ;  
+
+
+//Generation of input ackbb - needed in Mode 1 when B is strobed output 
+assign ackbb = ((CWR[6:5] == 2'b01) & PortBenable & PortC[2] ) ; 
+
+//For output of PPI in Mode 1 and 2, we need to generate intra and intrb signals 
+
+//PortA in Mode 1,2 -> PortC[3] -> intra 
+//PortB n Mode 1 -> PortC[0] -> intrb 
+//Full procedure shown in flow diagrams 
+
+reg set_si_intra, set_so_intra ; 
+reg set_si_intrb, set_so_intrb ; 
+wire out_intra ; 
+wire out_intrb ; 
+//Generating out_intra 
+assign wrb_PortA = (address == 3'b000) & wrb ; 
+
+always @ (negedge wrb_PortA or posedge ackab) 
+begin 
+	if(~wrb_PortA) 
+		set_so_intra <= 0 ; 
+	else 
+		set_so_intra <= 1 ; 
+end 
+
+assign rdb_PortA = (address == 3'b000) & rdb ; 
+
+always @ (posedge stbab or negedge rdb_PortA) 
+begin 
+	if(~rdb_PortA) 
+		set_si_intra <= 0 ; 
+	else 
+		set_si_intra <= 1 ; 
+end 
+
+assign out_intra = int_reset ? 0 : (PortAenable & (CWR[6:5] == 2'b01) & STATUS[2]) ? set_so_intra : (~PortAenable & (CWR[6:5] == 2'b01 ) & STATUS[0] ) ? set_si_intra : ((CWR[6:5] == 2'b10 ) & STATUS[4] & STATUS[5] ) ? (set_so_intra | set_si_intra) : 0 ; 
+ 
+           
+//Generating out_intrb 
+assign wrb_PortB = (address == 3'b001 ) & wrb ; 
+
+always @ (negedge wrb_PortB or posedge ackbb) 
+begin 
+	if(~wrb_PortB) 
+		set_so_intrb <= 0 ; 
+	else 
+		set_so_intrb <= 1 ; 
+end 
+
+assign rdb_PortB = (address == 3'b001) & rdb ; 
+
+always @ (negedge rdb_PortB or posedge stbbb ) 
+begin 
+	if(~rdb_PortB) 
+		set_si_intrb <= 0 ; 
+	else 
+		set_si_intrb <= 1 ; 
+end 
+
+assign out_intrb = int_reset? 0 : (PortBenable & (CWR[6:5] == 2'b01) & STATUS[3] ) ? set_so_intrb : (~PortBenable & (CWR[6:5] == 2'b01 ) & STATUS[1] ) ? set_si_intrb : 0 ; 
+
+//Generation of output ibfa needed when in Mode 1 and PortA is strobed input or Mode 2 
+//ibfa - input buffer full 
+
+reg set_ibfa , reset_ibfa ; 
+always @ ( posedge rdb) 
+begin 
+	if(set_ibfa) 
+		reset_ibfa <= 1; 
+	else 
+		reset_ibfa <= 0 ; 
+end 
+
+//Sensitivity list explained in the flow diagrams 
+always @ ( CWR or PortAenable or reset_ibfa or stbab or out_ibfa or int_reset) 
+begin 
+	if(int_reset) 
+		set_ibfa = 0 ; 
+	else if ((CWR[6:5] == 2'b01 ) & ~PortAenable & ~reset_ibfa & ~stbab) //Port A Input Mode 
+		set_ibfa = 1 ; 
+	else if ((CWR[6:5] == 2'b10) & ~reset_ibfa & ~stbab) //Port A Mode 2 
+		set_ibfa = 1 ; 
+	else if(reset_ibfa) 
+		set_ibfa = 0 ; 
+		
+end 
+
+assign out_ibfa = set_ibfa ; 
+
+//Generating output ibfb - Needed when in Mode 1 and Port b is strobed Input 
+reg set_ibfb , reset_ibfb ; 
+always @ (posedge rdb) 
+begin 
+	if(set_ibfb) 
+		reset_ibfb <= 1 ; 
+	else 
+		reset_ibfb <= 0 ; 
+end 
+
+always @ ( CWR or PortBenable or reset_ibfb or stbbb or out_ibfb or int_reset) 
+begin 
+	if(int_reset) 
+		set_ibfb = 0 ; 
+	else if ((CWR[6:5] == 2'b01 ) & PortBenable & ~reset_ibfb & ~stbbb) 
+		set_ibfb = 1 ; 
+	else if (reset_ibfb) 
+		set_ibfb = 0 ; 
+end 
+
+assign out_ibfb = set_ibfb ; 
+
+//FINAL Logic 
+
+
+
+ 
 
 
 
