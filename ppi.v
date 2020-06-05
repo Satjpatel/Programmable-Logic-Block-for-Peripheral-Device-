@@ -460,10 +460,70 @@ assign out_ibfb = set_ibfb ;
 
 //FINAL Logic 
 
+//We only have to multiplex these 3 ports 
 
+//Multiplexing Signals to PortA 
+always @ (int_reset or wrb or address or CWR or PortAenable or latch_data or out_obfab or ackab) 
+begin 
+	if(int_reset) 
+		out_PortA [7:0] = 8'b00000000 ; 
+	else if (~wrb & (address == 3'b000 ) & (CWR[6:5] == 2'b00) & PortAenable ) //Mode 0 
+		out_PortA = latch_data ; 
+	else if ((~out_obfab | ~ackab) & (address == 3'b000 ) & (CWR[6:5] == 2'b01) & PortAenable) //Mode1 
+		out_PortA = latch_data ; 
+	else if ((~out_obfab | ~ackab) & (address == 3'b000) & (CWR[6:5] == 2'b10)) //Mode 2 
+		out_PortA = latch_data ; 
+	else 
+		out_PortA = 8'bzzzzzzzz ; 
+end 
 
- 
+//Multiplexing Signals to PortB 
+always @( int_reset or wrb or address or CWR or PortBenable or latch_data or out_obfbb or ackbb) 
+begin 
+	if(int_reset) 
+		out_PortB = 8'bzzzzzzzz ; 
+	else if(~wrb & (address == 3'b001) & (CWR[6:5] == 2'b00) & PortBenable) //Mode 0 
+		out_PortB = latch_data ; 
+	else if((~out_obfbb | ~ackbb) & (address == 3'b001) & (CWR[6:5] == 2'b01) & PortBenable) //Mode 1 
+		out_PortB = latch_data ; 
+	else if(~wrb & (address == 3'b001) & (CWR[6:5] == 2'b10) & PortBenable) //Mode 2 
+		out_PortB = latch_data ; 
+	else 
+		out_PortB = 8'bzzzzzzzz ; 
+end 
 
+//Multiplexing signals to Port C -- Refer Flow diagram for more information 
+always @ (int_reset or wrb or address or CWR or PortCenable or latch_data or out_ibfa or out_intra or out_ibfb or out_intrb or out_obfab or out_obfbb or PortAenable or PortBenable) 
+begin 
+	if(int_reset) 
+		out_PortC = 8'bzzzzzzzz ; 
+	else if (~wrb & (address == 3'b010) & (CWR[6:5] == 2'b00)) //Mode 0 
+		begin 
+			if(PortCenable == 8'hff) 
+				out_PortC = latch_data ; 
+			else if ( PortCenable == 8'h0f) 
+				out_PortC = {4'bzzzz. latch_data[3:0] } ; 
+			else if ( PortCenable == 8'hf0 ) 
+				out_PortC = {latch_data[7:4] , 4'bzzzz} 
+			else 
+				out_PortC = 8'bzzzzzzzz ; 
+		end 
+	else if(CWR[6:5] == 2'b01 ) //Mode 1 
+		begin 
+			if( ~PortAenable & ~PortBenable) //PortA,B as strobed input 
+				out_PortC = { 2'bzz , out_ibfa , 1'bz , out_intra, 1'bz , out_ibfb , out_intrb } ; 
+			else if (~PortAenable & PortBenable) 
+				out_PortC = {2'bzz , out_ibfa , 1'bz , out_intra , 1'bz , out_obfbb , out_intrb } ; 
+			else if(PortAenable & ~PortBenable) 
+				out_PortC = {out_obfab , 3'bzzz , out_intra, 1'bz , out_ibfb , out_intrb } ; 
+			else //PortAenable and PortBenable is high 
+				out_PortC = {out_obfab, 3'bzzz , out_intra , 1'bz , out_obfbb , out_intrb } ; 
+		end 
+	else if(CWR[6:5] == 2'b10 ) //Mode 2 
+		out_PortC = { out_obfab , 1'bz , out_ibfa , 1'bz , out_intra, 3'bzzz } ; 
+	else 
+		out_PortC = 8'bzzzzzzzz ; 
+end 
 
 
 endmodule
