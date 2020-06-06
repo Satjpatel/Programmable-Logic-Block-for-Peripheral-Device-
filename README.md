@@ -18,6 +18,11 @@ Mode 0 - where the three ports operate as input or output buses
 Mode 1 - where PortA and PortB operate as strobed input or output , and PortC supports in controlling 
 Mode 2 - where PortA operates as strobed inout, Port b as simple input or output( same as in Mode 0 ) and PortC supports the functionality. 
 
+Testing 
+Mode 0 -> Done 
+Rest is pending. 
+
+
 
 
 
