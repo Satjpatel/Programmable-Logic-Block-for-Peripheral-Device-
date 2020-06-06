@@ -17,4 +17,12 @@ It operates in three modes -
 Mode 0 - where the three ports operate as input or output buses 
 Mode 1 - where PortA and PortB operate as strobed input or output , and PortC supports in controlling 
 Mode 2 - where PortA operates as strobed inout, Port b as simple input or output( same as in Mode 0 ) and PortC supports the functionality. 
-Ref: Verilog Coding for Logic Synthesis by Weng Fook Lee (Wiley Publication) 
+
+
+
+
+Ref:
+1. Verilog Coding for Logic Synthesis by Weng Fook Lee (Wiley Publication) 
+2. http://www.asic-world.com/verilog/veritut.html
+3. https://www.fpga4student.com/
+4. Verilog HDL - A Guide to Digital System and Synthesis by Samir Palnitkar 
