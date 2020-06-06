@@ -1,0 +1,53 @@
+	
+	//Task definations 
+	task write_port ; 
+	begin 
+		wrb = 1 ; 
+		rdb = 1 ; 
+		#cycle ; 
+		wrb = 0 ; 
+		#cycle ; 
+		wrb = 1 ; 
+		#cycle ; 
+	end 
+	endtask 
+	
+	task read_port ; 
+	begin 
+		wrb = 1 ; 
+		rdb = 1 ; 
+		#cycle ; 
+		rdb = 0 ; 
+		#cycle ; 
+		rdb = 1 ; 
+		#cycle ; 
+	end 
+	endtask 
+	
+	task CWR_write; 
+	input [7:0] temp_data; 
+	begin 
+		reset = 0 ; 
+		address = 3'o3 ; 
+		rdb = 1 ; 
+		wrb = 1 ; 
+		#cycle ; 
+		drive_data = temp_data ; 
+		wrb = 0 ; 
+		#cycle; 
+		wrb = 1 ; 
+		#cycle ; 
+	end 
+	endtask 
+	
+	task task_reset; 
+	begin 
+		reset = 0 ; 
+		#cycle ; 
+		reset = 1 ; 
+		#cycle ; 
+		reset = 0 ; 
+		#cycle  
+	end 
+	endtask
+	
