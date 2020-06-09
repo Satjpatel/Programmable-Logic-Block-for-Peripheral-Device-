@@ -20,6 +20,7 @@ Mode 2 - where PortA operates as strobed inout, Port b as simple input or output
 
 Testing 
 Mode 0 -> Done 
+Reading and Writing CWR and STATUS Register
 Rest is pending. 
 
 
