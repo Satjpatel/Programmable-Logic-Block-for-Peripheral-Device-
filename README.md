@@ -27,6 +27,8 @@ Reading and Writing CWR and STATUS Register -> Done
 
 Mode 1 -> Done  
 
+Mode 2 -> Done 
+
 
 
 
