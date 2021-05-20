@@ -18,7 +18,7 @@
 // 
 // Revision:
 // Revision 0.01 - File Created
-// Additional Comments:
+// Additional Comments: Master testbench file
 // 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -58,7 +58,7 @@ module ppi_tb1;
 		// Wait 100 ns for global reset to finish
 		#100;
         
-		// Add stimulus here
+		// Add stimulus here - This is the template for any test bench we want to write 
 
 	end
       
